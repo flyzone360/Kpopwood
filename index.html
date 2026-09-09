@@ -318,6 +318,36 @@
   <div class="loader-bar"><i id="loaderFill"></i></div>
   <div class="loader-pct" id="loaderPct">0%</div>
 </div>
+<script>
+/* Runs immediately as soon as this early part of the page has been parsed —
+   NOT waiting for the rest of the (large, image-heavy) file to finish
+   downloading. Loops the You/I/KPopWood reveal indefinitely so there's
+   something alive on screen for however long the real download takes.
+   The main script at the bottom of the page stops this loop and finishes
+   it cleanly the moment the whole page is actually ready. */
+(function(){
+  var pct = 0;
+  var lastWord = "";
+  window.__loaderReady = false;
+  window.__earlyLoaderTimer = setInterval(function(){
+    if (window.__loaderReady) return;
+    var wordEl = document.getElementById("loaderWord");
+    var pctEl = document.getElementById("loaderPct");
+    var fillEl = document.getElementById("loaderFill");
+    pct += 2;
+    if (pct > 100) pct = 0;
+    var rounded = Math.round(pct);
+    if (pctEl) pctEl.textContent = rounded + "%";
+    if (fillEl) fillEl.style.width = rounded + "%";
+    var word = rounded < 30 ? "You" : rounded < 60 ? "I" : "KPopWood";
+    if (word !== lastWord && wordEl){
+      wordEl.style.opacity = "0";
+      setTimeout(function(){ wordEl.textContent = word; wordEl.style.opacity = "1"; }, 90);
+      lastWord = word;
+    }
+  }, 40);
+})();
+</script>
 
 <!-- BRAND + REGION/LANGUAGE (top-right) -->
 <div class="brand-strip">
@@ -742,35 +772,23 @@ document.addEventListener("click", (e) => {
   setTimeout(() => buyBtn.classList.remove("buy-attention"), 1500);
 });
 
-/* loading screen — counts 0 to 100%, swapping the word underneath the
-   logo as it goes: You (1-30%) -> I (30-60%) -> KPopWood (60-100%) */
-function runLoader(){
+/* loading screen — the early inline script (right after the #loader markup)
+   has already been looping You -> I -> KPopWood since the page started
+   downloading. Once we get here, the whole (large) page has actually
+   finished loading, so stop that loop and finish cleanly on KPopWood. */
+function finishLoader(){
+  window.__loaderReady = true;
+  clearInterval(window.__earlyLoaderTimer);
   const wordEl = document.getElementById("loaderWord");
   const pctEl = document.getElementById("loaderPct");
   const fillEl = document.getElementById("loaderFill");
-  let pct = 0;
-  const totalMs = 1400;
-  const stepMs = 20;
-  const steps = totalMs / stepMs;
-  let lastWord = "";
-  const timer = setInterval(() => {
-    pct = Math.min(100, pct + (100 / steps));
-    const rounded = Math.round(pct);
-    pctEl.textContent = rounded + "%";
-    fillEl.style.width = rounded + "%";
-    const word = rounded < 30 ? "You" : rounded < 60 ? "I" : "KPopWood";
-    if (word !== lastWord){
-      wordEl.style.opacity = "0";
-      setTimeout(() => { wordEl.textContent = word; wordEl.style.opacity = "1"; }, 90);
-      lastWord = word;
-    }
-    if (pct >= 100){
-      clearInterval(timer);
-      setTimeout(() => document.getElementById("loader").classList.add("hidden"), 350);
-    }
-  }, stepMs);
+  pctEl.textContent = "100%";
+  fillEl.style.width = "100%";
+  wordEl.style.opacity = "0";
+  setTimeout(() => { wordEl.textContent = "KPopWood"; wordEl.style.opacity = "1"; }, 90);
+  setTimeout(() => document.getElementById("loader").classList.add("hidden"), 450);
 }
-window.addEventListener("load", runLoader);
+window.addEventListener("load", finishLoader);
 
 /* ================================================================
    CASUAL COPY/DOWNLOAD DETERRENTS
