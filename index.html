@@ -392,27 +392,50 @@
 <script>
 /* Runs immediately as soon as this early part of the page has been parsed —
    NOT waiting for the rest of the (large, image-heavy) file to finish
-   downloading. window.__prog() is called by small checkpoint scripts placed
-   after each large embedded image further down the page — each one reports
-   the REAL cumulative percentage of the file's actual byte size that has
-   been received so far. This loop just smoothly animates the reel toward
-   whatever that real number currently is; it never simulates or fakes the
-   number itself. */
+   downloading. The reel spins on its OWN smooth, continuous velocity (never
+   jerks frame to frame) — real progress only controls which speed "zone"
+   it's in: slow start -> fast cruise -> sudden slow-down past 80% -> a
+   precise stop-on-KPopWood once the page actually finishes (see
+   finishLoader further down). The percentage number shown is still the
+   real figure from window.__prog(), just gently smoothed for display. */
 (function(){
   window.__loaderReady = false;
   window.__realProgress = 2; // this much (logo + markup) has already arrived by the time this script runs
   window.__prog = function(p){ if (p > window.__realProgress) window.__realProgress = p; };
 
   var ROW_H = 32;
+  var CYCLE = 3; // You / I / KPopWood repeat every 3 rows
   var track = document.getElementById("reelTrack");
   var rows = track ? track.children.length : 18;
+  var rowPos = 0;
+  var velocity = 0.05; // rows per ms
   var display = 0;
+  var lastTs = null;
   var captions = ["Starting…","Warming up…","Spinning…","Almost there…","Final stretch…","Locking in…"];
 
-  function frame(){
+  function targetVelocity(pct){
+    if (pct < 30) return 0.05 + (pct / 30) * 0.32; // slow start ramping up
+    if (pct < 80) return 0.37;                      // fast smooth cruise
+    return 0.06;                                    // sudden slow-down past 80%
+  }
+
+  function frame(ts){
     if (window.__loaderReady) return;
-    display += (window.__realProgress - display) * 0.10;
+    if (lastTs === null) lastTs = ts;
+    var dt = Math.min(40, ts - lastTs);
+    lastTs = ts;
+
+    display += (window.__realProgress - display) * 0.06;
     var shown = Math.min(99, Math.round(display));
+
+    // ease velocity toward its target zone — smooth acceleration, and a
+    // quicker (but still eased, not instant) drop once past 80%
+    var tv = targetVelocity(window.__realProgress);
+    var ease = window.__realProgress >= 80 ? 0.05 : 0.025;
+    velocity += (tv - velocity) * ease;
+
+    rowPos += velocity * dt;
+    if (rowPos > rows - CYCLE) rowPos -= CYCLE; // seamless wrap — content repeats every 3 rows
 
     var pctEl = document.getElementById("loaderPct");
     var capEl = document.getElementById("loaderCaption");
@@ -420,9 +443,8 @@
     if (capEl) capEl.textContent = captions[Math.min(captions.length - 1, Math.floor(shown / 20))];
 
     if (track){
-      var rowPos = (display / 100) * (rows - 1);
       track.style.transform = "translateY(" + (-(rowPos - 1) * ROW_H) + "px)";
-      var current = Math.round(rowPos);
+      var current = Math.round(rowPos + rows) % rows;
       for (var i = 0; i < track.children.length; i++){
         track.children[i].classList.toggle("is-current", i === current);
       }
