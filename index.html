@@ -89,70 +89,72 @@
   @keyframes auroraFloat3{ 0%,100%{ transform:translate(0,0) scale(1); } 50%{ transform:translate(-6%,9%) scale(1.1); } }
   @media (prefers-reduced-motion: reduce){ .aurora span{ animation:none; } }
 
-  /* ---------- loader ---------- */
+  /* ---------- loader ----------
+     A calm, honest loading indicator — no slot machine, no fake "spin to a
+     result". Just a smoothly rotating ring (the universal, premium way to
+     say "actively working" — same idea as iOS/macOS's own spinner) plus a
+     real percentage number and a gentle word crossfade (You -> I ->
+     KPopWood), both driven directly by the REAL checkpoint progress further
+     down the page. Nothing here pretends to be progress that isn't real. */
   #loader{
     position:fixed; inset:0; z-index:999;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
     background: radial-gradient(ellipse 100% 70% at 50% 40%, #23124a 0%, var(--bg-0) 70%);
     transition: opacity .6s ease, visibility .6s ease;
   }
   #loader.hidden{ opacity:0; visibility:hidden; pointer-events:none; }
 
-  /* ---------- loader slot-reel ----------
-     A vertical slot-machine style reel: three words (You / I / KPopWood)
-     cycle past a fixed selection window, moving in sync with REAL page-load
-     progress (see the checkpoint scripts sprinkled through the body below)
-     — not a simulated/fake curve. Everything here is a single transform on
-     one small element (cheapest possible animation for the GPU); the glass
-     look is "fake glass" (layered gradients + border + shadow), never real
-     backdrop-filter blur, so this costs the compositor almost nothing. */
-  .reel-wrap{ position:relative; width:150px; display:flex; flex-direction:column; align-items:center; gap:1px; z-index:1; }
-  .reel-glow{
-    position:absolute; inset:-22px; border-radius:26px; z-index:0; pointer-events:none;
-    background:radial-gradient(circle, rgba(157,78,221,0.32), transparent 70%);
-    opacity:0.55; transition:opacity .4s ease;
+  .spin-wrap{ position:relative; width:118px; height:118px; }
+  .spin-glow{
+    position:absolute; inset:-18px; border-radius:50%; z-index:0; pointer-events:none;
+    background:radial-gradient(circle, rgba(157,78,221,0.3), transparent 70%);
+    opacity:0.6; transition:opacity .4s ease;
   }
-  .reel-arrow{ font-size:10px; color:var(--lilac-glow); line-height:1; position:relative; z-index:2; animation:arrowWiggle 1.5s ease-in-out infinite; }
-  .reel-arrow.bottom{ animation-delay:.12s; }
-  @keyframes arrowWiggle{ 0%,100%{ transform:translateY(0); } 50%{ transform:translateY(2px); } }
+  .spin-ring{
+    position:absolute; inset:0; border-radius:50%; z-index:1;
+    border:3px solid rgba(255,255,255,0.09);
+    border-top-color:var(--violet-500);
+    border-right-color:var(--magenta-500);
+    animation:spinRotate 1s linear infinite;
+    will-change:transform;
+  }
+  @keyframes spinRotate{ to{ transform:rotate(360deg); } }
 
-  .reel-window{
-    position:relative; width:150px; height:96px; border-radius:20px; overflow:hidden;
-    background:linear-gradient(160deg, rgba(255,255,255,0.10), rgba(255,255,255,0.025));
-    border:1px solid rgba(255,255,255,0.15);
-    box-shadow:inset 0 1px 0 rgba(255,255,255,0.1), 0 12px 30px rgba(0,0,0,0.4), 0 0 34px rgba(124,58,237,0.28);
+  /* a bright comet chasing around the ring — the one deliberately
+     eye-catching touch, so there's actually something worth watching
+     during the wait. Pure transform (rotate on the orbit wrapper), so it's
+     just as cheap as the ring itself. */
+  .spin-orbit{
+    position:absolute; inset:0; z-index:2; pointer-events:none;
+    animation:spinRotate 1.6s linear infinite;
   }
-  .reel-track{ position:absolute; left:0; top:0; width:100%; will-change:transform; }
-  .reel-row{
-    height:32px; display:flex; align-items:center; justify-content:center;
-    font-family:var(--font-display); font-weight:700; font-size:14px;
-    color:rgba(255,255,255,0.32); transition:color .15s ease, font-size .15s ease;
+  .spin-comet{
+    position:absolute; top:-3px; left:50%; width:8px; height:8px; margin-left:-4px;
+    border-radius:50%; background:#fff;
+    box-shadow:0 0 8px 2px #fff, 0 0 18px 6px rgba(192,38,211,0.85), 0 0 30px 10px rgba(157,78,221,0.5);
   }
-  .reel-row.is-current{ color:#fff; font-size:16px; text-shadow:0 0 14px rgba(192,38,211,0.75); }
 
-  .loader-pct{ font-family:var(--font-display); font-weight:700; font-size:19px; color:#fff; margin-top:6px; letter-spacing:0.3px; position:relative; z-index:1; }
-  .loader-caption{ font-size:11.5px; color:var(--ink-dim); position:relative; z-index:1; }
+  .spin-center{
+    position:absolute; inset:0; z-index:2;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  }
+  .loader-pct{ font-family:var(--font-display); font-weight:700; font-size:23px; color:#fff; letter-spacing:0.3px; transition:transform .18s ease; }
+  .loader-pct.tick{ transform:scale(1.16); }
+  .loader-word{
+    font-family:var(--font-display); font-weight:600; font-size:10.5px; letter-spacing:2.5px;
+    text-transform:uppercase; color:var(--lilac-glow); transition:opacity .25s ease;
+  }
+  .loader-status{
+    margin-top:4px; font-size:11.5px; color:var(--ink-dim); text-align:center;
+    min-height:16px; transition:opacity .25s ease;
+  }
 
-  /* celebration on landing at 100% — a couple of tiny sparkles, opacity +
-     transform only, gone almost as soon as they appear */
-  .reel-sparkle{
-    position:absolute; width:4px; height:4px; border-radius:50%; background:var(--lilac-glow);
-    opacity:0; z-index:2; pointer-events:none;
-  }
-  .reel-sparkle:nth-child(1){ top:8%; left:6%; }
-  .reel-sparkle:nth-child(2){ top:14%; right:8%; }
-  .reel-sparkle:nth-child(3){ bottom:12%; left:12%; }
-  .reel-sparkle:nth-child(4){ bottom:8%; right:14%; }
-  #loader.celebrate .reel-glow{ opacity:1; }
-  #loader.celebrate .reel-sparkle{ animation:sparklePop 0.9s ease forwards; }
-  #loader.celebrate .reel-sparkle:nth-child(2){ animation-delay:.08s; }
-  #loader.celebrate .reel-sparkle:nth-child(3){ animation-delay:.16s; }
-  #loader.celebrate .reel-sparkle:nth-child(4){ animation-delay:.22s; }
-  @keyframes sparklePop{
-    0%{ opacity:0; transform:scale(0.4); }
-    40%{ opacity:1; transform:scale(1.3); }
-    100%{ opacity:0; transform:scale(0.6) translateY(-10px); }
-  }
+  /* on completion — the ring eases to a stop and glows once, no confetti,
+     no jackpot moment, just a calm settle */
+  #loader.celebrate .spin-glow{ opacity:1; }
+  #loader.celebrate .spin-ring{ animation:spinRotate 1s linear infinite, ringSettle .5s ease forwards; }
+  #loader.celebrate .spin-orbit{ animation-play-state:paused; opacity:0; transition:opacity .3s ease; }
+  @keyframes ringSettle{ to{ box-shadow:0 0 22px rgba(192,38,211,0.6); } }
 
   /* real backdrop-filter blur — only used here, on the few header pills/
      dropdown, so it's cheap. Products use "fake glass" further down since
@@ -369,86 +371,73 @@
 
 <!-- LOADER -->
 <div id="loader">
-  <div class="reel-wrap">
-    <div class="reel-glow"></div>
-    <div class="reel-arrow top">▾</div>
-    <div class="reel-window">
-      <div class="reel-track" id="reelTrack">
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-        <div class="reel-row">You</div><div class="reel-row">I</div><div class="reel-row">KPopWood</div>
-      </div>
-      <div class="reel-sparkle"></div><div class="reel-sparkle"></div>
-      <div class="reel-sparkle"></div><div class="reel-sparkle"></div>
+  <div class="spin-wrap">
+    <div class="spin-glow"></div>
+    <div class="spin-ring"></div>
+    <div class="spin-orbit"><div class="spin-comet"></div></div>
+    <div class="spin-center">
+      <div class="loader-pct" id="loaderPct">0%</div>
+      <div class="loader-word" id="loaderWord">You</div>
     </div>
-    <div class="reel-arrow bottom">▴</div>
   </div>
-  <div class="loader-pct" id="loaderPct">0%</div>
-  <div class="loader-caption" id="loaderCaption">Starting…</div>
+  <div class="loader-status" id="loaderStatus">Getting things ready…</div>
 </div>
 <script>
 /* Runs immediately as soon as this early part of the page has been parsed —
    NOT waiting for the rest of the (large, image-heavy) file to finish
-   downloading. The reel spins on its OWN smooth, continuous velocity (never
-   jerks frame to frame) — real progress only controls which speed "zone"
-   it's in: slow start -> fast cruise -> sudden slow-down past 80% -> a
-   precise stop-on-KPopWood once the page actually finishes (see
-   finishLoader further down). The percentage number shown is still the
-   real figure from window.__prog(), just gently smoothed for display. */
+   downloading. The ring's rotation is just a constant, honest "still
+   working" spinner (like iOS/macOS) — it does NOT pretend to represent
+   progress. The percentage number and the You/I/KPopWood word are the real
+   indicators, both driven directly by window.__prog(), which is called by
+   small checkpoint scripts placed after each large embedded image further
+   down the page reporting the REAL cumulative byte progress. */
 (function(){
   window.__loaderReady = false;
   window.__realProgress = 2; // this much (logo + markup) has already arrived by the time this script runs
   window.__prog = function(p){ if (p > window.__realProgress) window.__realProgress = p; };
 
-  var ROW_H = 32;
-  var CYCLE = 3; // You / I / KPopWood repeat every 3 rows
-  var track = document.getElementById("reelTrack");
-  var rows = track ? track.children.length : 18;
-  var rowPos = 0;
-  var velocity = 0.05; // rows per ms
   var display = 0;
-  var lastTs = null;
-  var captions = ["Starting…","Warming up…","Spinning…","Almost there…","Final stretch…","Locking in…"];
+  var lastWord = "";
+  var lastShown = -1;
+  var statusLines = [
+    "Getting things ready…",
+    "Loading your bias list…",
+    "Unpacking the merch shelf…",
+    "Almost there…",
+    "Final touches…"
+  ];
+  var lastStatusIdx = -1;
 
-  function targetVelocity(pct){
-    if (pct < 30) return 0.05 + (pct / 30) * 0.32; // slow start ramping up
-    if (pct < 80) return 0.37;                      // fast smooth cruise
-    return 0.06;                                    // sudden slow-down past 80%
-  }
-
-  function frame(ts){
+  function frame(){
     if (window.__loaderReady) return;
-    if (lastTs === null) lastTs = ts;
-    var dt = Math.min(40, ts - lastTs);
-    lastTs = ts;
-
-    display += (window.__realProgress - display) * 0.06;
+    display += (window.__realProgress - display) * 0.07;
     var shown = Math.min(99, Math.round(display));
 
-    // ease velocity toward its target zone — smooth acceleration, and a
-    // quicker (but still eased, not instant) drop once past 80%
-    var tv = targetVelocity(window.__realProgress);
-    var ease = window.__realProgress >= 80 ? 0.05 : 0.025;
-    velocity += (tv - velocity) * ease;
-
-    rowPos += velocity * dt;
-    if (rowPos > rows - CYCLE) rowPos -= CYCLE; // seamless wrap — content repeats every 3 rows
-
     var pctEl = document.getElementById("loaderPct");
-    var capEl = document.getElementById("loaderCaption");
-    if (pctEl) pctEl.textContent = shown + "%";
-    if (capEl) capEl.textContent = captions[Math.min(captions.length - 1, Math.floor(shown / 20))];
+    var wordEl = document.getElementById("loaderWord");
+    var statusEl = document.getElementById("loaderStatus");
 
-    if (track){
-      track.style.transform = "translateY(" + (-(rowPos - 1) * ROW_H) + "px)";
-      var current = Math.round(rowPos + rows) % rows;
-      for (var i = 0; i < track.children.length; i++){
-        track.children[i].classList.toggle("is-current", i === current);
-      }
+    if (pctEl && shown !== lastShown){
+      pctEl.textContent = shown + "%";
+      pctEl.classList.add("tick");
+      setTimeout(function(){ pctEl.classList.remove("tick"); }, 180);
+      lastShown = shown;
     }
+
+    var word = shown < 33 ? "You" : shown < 66 ? "I" : "KPopWood";
+    if (word !== lastWord && wordEl){
+      wordEl.style.opacity = "0";
+      setTimeout(function(){ wordEl.textContent = word; wordEl.style.opacity = "1"; }, 140);
+      lastWord = word;
+    }
+
+    var statusIdx = Math.min(statusLines.length - 1, Math.floor(shown / 20));
+    if (statusIdx !== lastStatusIdx && statusEl){
+      statusEl.style.opacity = "0";
+      setTimeout(function(){ statusEl.textContent = statusLines[statusIdx]; statusEl.style.opacity = "1"; }, 150);
+      lastStatusIdx = statusIdx;
+    }
+
     window.__reelRAF = requestAnimationFrame(frame);
   }
   window.__reelRAF = requestAnimationFrame(frame);
@@ -912,28 +901,19 @@ document.addEventListener("click", (e) => {
 });
 
 /* loading screen — the early inline script (right after the #loader markup)
-   has been moving the reel in lock-step with REAL download checkpoints
-   since the page started loading. Once we get here, the page has actually
-   finished, so take over: glide the reel to a precise stop on "KPopWood",
-   count the last bit up to 100%, and celebrate. */
+   has been showing the real percentage and word crossfade since the page
+   started loading. Once we get here, the page has actually finished, so
+   count the last little bit up to a clean 100%, settle on "KPopWood", and
+   let the ring glow once before everything fades out. */
 function finishLoader(){
   window.__loaderReady = true;
   if (window.__reelRAF) cancelAnimationFrame(window.__reelRAF);
 
-  const track = document.getElementById("reelTrack");
   const pctEl = document.getElementById("loaderPct");
-  const capEl = document.getElementById("loaderCaption");
+  const wordEl = document.getElementById("loaderWord");
+  const statusEl = document.getElementById("loaderStatus");
   const loaderEl = document.getElementById("loader");
-  const ROW_H = 32;
-  const rows = track.children.length;
-  const finalRow = rows - 1; // the sequence always ends on "KPopWood"
-  const dur = 650;
-
-  track.style.transition = `transform ${dur}ms cubic-bezier(0.15, 0.85, 0.25, 1)`;
-  track.style.transform = `translateY(${-(finalRow - 1) * ROW_H}px)`;
-  for (let i = 0; i < track.children.length; i++){
-    track.children[i].classList.toggle("is-current", i === finalRow);
-  }
+  const dur = 450;
 
   const startPct = parseInt(pctEl.textContent, 10) || 99;
   const startTime = performance.now();
@@ -944,13 +924,18 @@ function finishLoader(){
     if (t < 1){
       requestAnimationFrame(tick);
     } else {
-      capEl.textContent = "It's KPopWood!";
+      wordEl.style.opacity = "0";
+      statusEl.style.opacity = "0";
+      setTimeout(() => {
+        wordEl.textContent = "KPopWood"; wordEl.style.opacity = "1";
+        statusEl.textContent = "Welcome!"; statusEl.style.opacity = "1";
+      }, 100);
       loaderEl.classList.add("celebrate");
     }
   }
   requestAnimationFrame(tick);
 
-  setTimeout(() => loaderEl.classList.add("hidden"), dur + 500);
+  setTimeout(() => loaderEl.classList.add("hidden"), dur + 650);
 }
 window.__prog(100);
 window.addEventListener("load", finishLoader);
